@@ -1,0 +1,246 @@
+from Tkinter import *
+from tkFileDialog import askopenfilename
+import Image, ImageTk
+
+import time
+from threading import Thread
+
+import tkMessageBox
+
+def dot_prodcut(v1, v2):
+    return v1[0]*v2[0]+v1[1]*v2[1]
+
+def add(v1, v2):
+    return [v1[0]+v2[0], v1[1]+v2[1]]
+
+def subtract(v1, v2):
+    return [v1[0]-v2[0], v1[1]-v2[1]]
+
+def cross_product(v1, v2):
+    return v1[0]*v2[1]-v1[1]*v2[0]
+
+def edge_intersect_test(e1, e2):
+    p1 = e1[0]
+    p2 = e1[1]
+    p3 = e2[0]
+    p4 = e2[1]
+    p = p1
+    r = subtract(p2, p1)
+
+    q = p3
+    s = subtract(p4, p3)
+
+    rs = cross_product(r, s)
+    qp = subtract(q, p)
+    qpr = cross_product(qp, r)
+
+    if rs == 0:
+        if qpr == 0:
+            rr = dot_prodcut(r, r)
+            t0 = float(dot_prodcut(qp, r))/rr
+            t1 = t0+float(dot_prodcut(s,r))/rr
+
+            interval = [min(t0, t1), max(t0, t1)]
+            if interval[0] < 0:
+                if  interval[1] > 0:
+                    return True
+                else:
+                    return False
+            elif interval[0] < 1:
+                return True
+            else:
+                return False
+        else:
+            return False
+    else:
+        t = float(cross_product(qp, s))/rs
+        u = float(cross_product(qp, r))/rs
+        if t < 1 and t > 0 and u < 1 and u > 0:
+            return True
+        else:
+            return False
+
+def show_progress(edges):
+    global canvas
+    for e in edges:
+        a = e[0]
+        b = e[1]
+        canvas.create_line(a[0], a[1], b[0], b[1], fill="red")
+
+def Delaunay_recursive_actor(point_set):
+    if len(point_set) == 2:
+        return [[point_set[0], point_set[1]]]
+
+    if len(point_set) == 3:
+        return [[point_set[0], point_set[1]], [point_set[0], point_set[2]], [point_set[1], point_set[2]]]
+
+    left_point_set = point_set[:len(point_set)/2]
+    right_point_set = point_set[len(point_set)/2:]
+
+    left_edges = Delaunay_recursive_actor(left_point_set)
+    right_edges = Delaunay_recursive_actor(right_point_set)
+
+
+    if left_edges != None:
+        show_progress(left_edges)
+    
+    if right_edges != None:
+        show_progress(right_edges)
+
+    #start merging!
+    y_sorted_left_points = sorted(left_point_set, key=lambda x:x[1])
+    y_sorted_right_points = sorted(right_point_set, key=lambda x:x[1])
+
+    left_idx = right_idx = 0
+    lr_edge = None
+    while True:
+        possible_lr_edge = [y_sorted_left_points[left_idx], y_sorted_right_points[right_idx]]
+        flag = True
+        for ll_edge in left_edges:
+            if edge_intersect_test(ll_edge, possible_lr_edge):
+                flag = False
+                break
+
+        if flag:
+            for rr_edge in right_edges:
+                if edge_intersect_test(rr_edge, possible_lr_edge):
+                    flag = False
+                    break
+            
+            if flag:
+                lr_edge = possible_lr_edge
+                break
+
+        idx_to_try = []
+
+        left_next_idx = left_idx+1
+        right_next_idx = right_idx+1
+
+        if left_next_idx > len(y_sorted_left_points):
+            left_next_dist = -1
+        else:
+            left_next_dist = y_sorted_left_points[left_next_idx][1]-y_sorted_left_points[left_idx][1]
+
+        if right_next_idx > len(y_sorted_right_points):
+            right_next_dist = -1
+        else:
+            right_next_dist = y_sorted_right_points[right_next_idx][1]-y_sorted_right_points[right_idx][1]
+
+        if left_next_dist == -1:
+            if right_next_dist == -1:
+                pass
+            else:
+                idx_to_try.append([left_idx, right_idx+1])
+        elif right_next_dist == -1:
+            idx_to_try.append([left_idx+1, right_idx])
+        elif left_next_dist <= right_next_dist:
+            idx_to_try.append([left_idx+1, right_idx])
+            idx_to_try.append([left_idx, right_idx+1])
+        else:
+            idx_to_try.append([left_idx, right_idx+1])
+            idx_to_try.append([left_idx+1, right_idx])
+
+
+        edge_to_try = [[y_sorted_left_points[i[0]], y_sorted_right_points[i[1]]] for i in idx_to_try]
+
+        flag = True
+        for idx in range(len(edge_to_try)):
+            possible_lr_edge = edge_to_try[idx]
+            for ll_edge in left_edges:
+                if edge_intersect_test(ll_edge, possible_lr_edge):
+                    flag = False
+                    break
+                
+            if flag:
+                for rr_edge in right_edges:
+                    if edge_intersect_test(rr_edge, possible_lr_edge):
+                        flag = False
+                        break
+                
+            if flag:
+                left_idx = idx_to_try[idx][0]
+                right_idx = idx_to_try[idx][1]
+                lr_edge = possible_lr_edge
+                break
+
+
+
+        if flag:
+            break
+        else:
+            left_idx += 1
+            right_idx += 1
+            if left_idx >= len(y_sorted_left_points) or right_idx >= len(y_sorted_right_points):
+                break
+
+    print '-'*10
+    print left_edges
+    print right_edges
+    print lr_edge
+
+
+
+    if lr_edge != None:
+        return left_edges+right_edges+[lr_edge]
+    else:
+        return left_edges+right_edges 
+
+
+
+
+
+def Delaunay_triangulation(input_points):
+    def cmp_func(a, b):
+        if a[0] == b[0]:
+            return a[1] - b[1]
+        else:
+            return a[0] - b[0]
+
+    input_points = sorted(input_points, cmp=cmp_func)
+    edges = Delaunay_recursive_actor(input_points)
+    
+
+canvas = None
+point_set = []
+
+
+
+def UI_run():
+    global canvas
+    root = Tk()
+    root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
+    
+    canvas_width = int(root.winfo_screenwidth())*0.9
+    canvas_height = int(root.winfo_screenheight())*0.9
+    canvas = Canvas(root, width = canvas_width, height=canvas_height)
+    canvas.pack()    
+    canvas.config(background='black')
+
+    r = 5
+    def printcoords(event):
+        global point_set
+        point_set.append([event.x, event.y])
+        canvas.create_oval(event.x-r, event.y-r, event.x+r, event.y+r, fill="red")
+
+    canvas.bind("<Button 1>",printcoords)
+
+    def run_Delaunay_triangulation():
+        global point_set
+        Delaunay_triangulation(point_set)
+
+    def clear_canvas():
+        global point_set
+        point_set = []
+        canvas.delete('all')
+        
+
+    B_1 = Button(root, text ="run_Delaunay_triangulation", command = run_Delaunay_triangulation)
+    B_1.pack()
+
+    B_2 = Button(root, text ="clear_canvas", command = clear_canvas)
+    B_2.pack()
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    UI_run()
