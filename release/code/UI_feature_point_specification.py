@@ -15,6 +15,7 @@ from numpy import matrix
 from image_morphing_v2 import morph_baby
 from Delaunay_triangulation import same_point_test
 
+import pickle
 
 
 
@@ -24,8 +25,10 @@ dst_points = []
 src_event_points = []
 dst_event_points = []
 
-turn = 0
 
+events = []
+
+turn = 0
 
 def color_point(canvas, p, color):
     r = 5
@@ -114,10 +117,19 @@ def UI_feature_point_specification(root, src_img_file_name, dst_img_file_name, r
     
 
     r = 5
-    
-    def printcoords(event):
+   
 
-        global turn, src_event_points, dst_event_points, src_points, dst_points
+
+ 
+    def printcoords(event):
+        global turn, src_event_points, dst_event_points, src_points, dst_points, events
+
+        events.append({"x":event.x, "y":event.y})
+
+
+        with open('cached_events.pickle', 'wb') as handle:
+            pickle.dump(events, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
         if event.x < canvas_width/split:
             offset_x = 0+(canvas_width/split - src_new_width)/2
             offset_y = (canvas_height - src_new_height)/2
@@ -158,7 +170,20 @@ def UI_feature_point_specification(root, src_img_file_name, dst_img_file_name, r
             scale_factor = 1
 
 
-    canvas.bind("<Button 1>",printcoords)
+    class MyEvent(object):
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+    try:
+        with open('cached_events.pickle', 'rb') as handle:
+            cached_event = pickle.load(handle)
+            print cached_event
+            for e in cached_event:
+                tmp_obj = MyEvent(e["x"], e["y"])
+                printcoords(tmp_obj)
+    except IOError as e:
+        pass
+    canvas.bind("<Button 1>", printcoords)
 
 
 
@@ -224,7 +249,12 @@ def UI_feature_point_specification(root, src_img_file_name, dst_img_file_name, r
 
 
     def clean_canvas():
-        global src_points, dst_points, src_event_points, dst_event_points, turn
+        global src_points, dst_points, src_event_points, dst_event_points, turn, events
+
+        events = []
+        with open('cached_events.pickle', 'wb') as handle:
+            pickle.dump(events, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
         src_points = []
         dst_points = []
 

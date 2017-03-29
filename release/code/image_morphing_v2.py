@@ -7,6 +7,7 @@ from Delaunay_triangulation import *
 from BresenhamLineGenerator import BresenhamLineGenerator
 
 import time
+import os
 
 
 
@@ -303,11 +304,9 @@ def morph_baby(src_img_filename, dst_img_filename, src_points, dst_points, step,
 
             draw_convex_polygon(now_t, idx_map, output_size, i)
 
-        '''
         output_img = Image.new('L', output_size)
         output_img.putdata(idx_map)
-        output_img.save(str(count)+" idx_map.png")
-        '''
+        output_img.save(os.path.join(result_folder, str(count)+" idx_map.png"))
 
         print 'get dual_matrix and draw idx_map ', time.time()-time_a
 
@@ -368,7 +367,6 @@ def morph_baby(src_img_filename, dst_img_filename, src_points, dst_points, step,
 
         print 'morph one pic ', time.time()-time_a
 
-        '''        
         tmp_pixels = tuple_output_pixels[:]
         for t in now_triangles:
             draw_line(tmp_pixels, output_size, (255,0,0), t[0], t[1])
@@ -377,8 +375,7 @@ def morph_baby(src_img_filename, dst_img_filename, src_points, dst_points, step,
             
         output_img = Image.new(src_mode, output_size)
         output_img.putdata(tmp_pixels)
-        output_img.save(str(count)+" img with edges.jpg")
-        '''
+        output_img.save(os.path.join(result_folder, str(count)+" img with edges.jpg"))
 
         img_list.append(output_img)
 
@@ -401,7 +398,7 @@ def morph_baby(src_img_filename, dst_img_filename, src_points, dst_points, step,
 
     from images2gif import writeGif
 
-    import os
+
     store_path = os.path.join(result_folder, "result.gif")
 
 
